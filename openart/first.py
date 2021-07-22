@@ -10,7 +10,7 @@ import os, nncu
 SHOW=True
 state=2          #0为识别数字态   1为TAG码态  2为动物水果态
 roi_rect=(0,25,300,120)
-rect_threshold=50000
+rect_threshold=40000
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA) # we run out of memory if the resolution is much bigger...
@@ -27,7 +27,7 @@ uart = UART(1, baudrate=115200)     # 初始化串口 波特率设置为115200 T
 tag_vale = number_vale = animals_fruit_vale = animals_fruit_con = number_con = 0x00
 
 
-
+CMD_find_animals_fruit=[0xEE,0xAA,0x03,animals_fruit_vale,0xFF]
 CMD_nofind_animals_fruit=[0xEE,0xBB,0x04,animals_fruit_con,0xFF]
 CMD_nofind_number=[0xFF,0xBB,0x04,number_con,0xFF]
 
@@ -46,7 +46,7 @@ animals_fruit_net = nncu.load("/animal_fruit_models/_1s_model_25_0.9936_xxxx.nnc
 def nncu_detect(img1,net):
     scores = nncu.classify(net , img1)[0].output()
     max_score = max(scores)
-    if(max_score>0.95):
+    if(max_score>0.8):
         max_label = scores.index(max_score)
         return (max_label,max_score)
     return (None,0)
@@ -113,22 +113,11 @@ while(True):
                       break
                  if(abs(r.rect()[3]) < 40 or abs(r.rect()[2]) < 40):
                       break
-                 #模型推理
+                 #模型输入与反馈
                  img1 = img.copy(r.rect())
-                 (result_obj,result_score)=nncu_detect(img1,animals_fruit_net)
+                 #(result_obj,result_score)=nncu_detect(img1,animals_fruit_net)
+                 #print(result_obj % result_score )
 
-                 #是否画图（找到的外接矩形及内点）
-                 if(SHOW == True):
-                     print(result_obj , result_score )
-                     for p in r.corners():
-                         img.draw_circle(p[0], p[1], 5, color = (0, 255, 0))
-                     img.draw_rectangle(r.rect(), color = (255, 0, 0))
-                 #串口通信
-                 x_vale=int((r.rect()[0] + r.rect()[2]/2)/2)
-                 y_vale=int((r.rect()[1] + r.rect()[3]/2)/2)
-                 animals_fruit_vale=int(result_obj)
-                 CMD_find_animals_fruit=[0xEE,0xAA,0x03,animals_fruit_vale,x_vale,y_vale,0xFF]
-                 uart.write(bytearray(CMD_find_animals_fruit))
 
 
     #print(time.ticks()-t0)
